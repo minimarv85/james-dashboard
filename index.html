@@ -21,7 +21,7 @@
     .list-header h2 { font-size: 18px; color: #1a1a2e; }
     .list-header .badge { background: #667eea; color: white; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 600; }
     
-    .list-items { padding: 8px; max-height: 60vh; overflow-y: auto; }
+    .list-items { padding: 8px; max-height: 65vh; overflow-y: auto; }
     
     .item { display: flex; align-items: flex-start; gap: 12px; padding: 14px 12px; border-radius: 10px; transition: background 0.2s; }
     .item:hover { background: #f8fafc; }
@@ -39,16 +39,14 @@
     .add-item { display: flex; gap: 10px; padding: 16px; border-top: 1px solid #f0f2f5; }
     .add-item input { flex: 1; padding: 14px; border: 2px solid #e1e5eb; border-radius: 12px; font-size: 16px; }
     .add-item input:focus { border-color: #667eea; outline: none; }
-    .add-item button { padding: 14px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 16px; }
+    .add-item button { padding: 14px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 16px; }
     
     .empty-state { text-align: center; padding: 40px; color: #888; }
     .empty-state span { font-size: 48px; display: block; margin-bottom: 12px; }
     
-    .loading { text-align: center; padding: 40px; color: #888; font-size: 16px; }
-    
     .footer { margin-top: 20px; text-align: center; color: #888; font-size: 13px; padding: 16px; }
     
-    .toast { position: fixed; bottom: 24px; right: 24px; left: 24px; text-align: center; padding: 14px 24px; background: #10b981; color: white; border-radius: 12px; z-index: 2000; animation: slideIn 0.3s ease; font-size: 16px; }
+    .toast { position: fixed; bottom: 24px; left: 24px; right: 24px; text-align: center; padding: 14px 24px; background: #10b981; color: white; border-radius: 12px; z-index: 2000; animation: slideIn 0.3s ease; font-size: 16px; font-weight: 500; }
     @keyframes slideIn { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
   </style>
 </head>
@@ -74,28 +72,39 @@
     </div>
     
     <div class="footer">
-      Tasks sync from GitHub • Refresh to see updates
+      Tasks save automatically on this device
     </div>
   </div>
 
   <script>
-    const DATA_URL = 'dashboard-data.json';
+    const STORAGE_KEY = 'james-tasks';
     let tasks = [];
     
-    // Load from JSON file
-    async function loadTasks() {
+    // Load from localStorage
+    function loadTasks() {
       const container = document.getElementById('list-items');
-      container.innerHTML = '<div class="loading">Loading...</div>';
+      const saved = localStorage.getItem(STORAGE_KEY);
       
-      try {
-        const response = await fetch(DATA_URL + '?t=' + Date.now());
-        const data = await response.json();
-        tasks = data.lists[0]?.items || [];
-        render();
-      } catch (err) {
-        container.innerHTML = '<div class="empty-state"><span>⚠️</span>Could not load tasks. Check internet.</div>';
-        console.error(err);
+      if (saved) {
+        tasks = JSON.parse(saved);
+      } else {
+        // Default tasks
+        tasks = [
+          { id: 1, text: 'Meeting: Tomorrow, 10:00 AM', completed: false },
+          { id: 2, text: 'Discuss costs of bespoke app', completed: false },
+          { id: 3, text: 'test task', completed: false },
+          { id: 4, text: 'eat task', completed: false },
+          { id: 5, text: 'hello', completed: false }
+        ];
+        saveTasks();
       }
+      
+      render();
+    }
+    
+    // Save to localStorage
+    function saveTasks() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
     }
     
     // Render
@@ -105,7 +114,7 @@
       document.getElementById('count').textContent = activeCount;
       
       container.innerHTML = tasks.length === 0 
-        ? '<div class="empty-state"><span>📭</span>No tasks yet</div>'
+        ? '<div class="empty-state"><span>📭</span>No tasks yet. Add one above!</div>'
         : tasks.map(task => `
             <div class="item ${task.completed ? 'completed' : ''}" data-id="${task.id}">
               <div class="item-checkbox" onclick="toggleTask(${task.id})"></div>
@@ -124,34 +133,43 @@
       setTimeout(() => toast.remove(), 2000);
     }
     
-    // Add task (local only - for me to update via GitHub)
-    async function addTask() {
+    // Add task
+    function addTask() {
       const input = document.getElementById('new-task');
       if (!input.value.trim()) return;
       
-      // Show toast that this is local only
-      showToast('Note: Ask me to add tasks for sync');
+      tasks.push({
+        id: Date.now(),
+        text: input.value.trim(),
+        completed: false
+      });
+      
       input.value = '';
+      saveTasks();
+      render();
+      showToast('Task added');
     }
     
-    // Toggle (local only)
+    // Toggle task
     function toggleTask(id) {
       const task = tasks.find(t => t.id === id);
       if (task) {
         task.completed = !task.completed;
+        saveTasks();
         render();
-        showToast('Toggled locally');
+        showToast(task.completed ? 'Task completed' : 'Task reopened');
       }
     }
     
-    // Delete (local only)
+    // Delete task
     function deleteTask(id) {
       tasks = tasks.filter(t => t.id !== id);
+      saveTasks();
       render();
-      showToast('Deleted locally');
+      showToast('Task deleted');
     }
     
-    // Init - load fresh each time
+    // Init - load saved tasks
     loadTasks();
   </script>
 </body>
