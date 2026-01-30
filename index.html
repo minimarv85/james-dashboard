@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>James Dashboard</title>
+  <title>James's Tasks</title>
   <meta name="theme-color" content="#667eea">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -14,6 +14,7 @@
     header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #e1e5eb; }
     header h1 { font-size: 24px; color: #1a1a2e; }
     header .date { color: #888; font-size: 13px; }
+    header .refresh-btn { background: none; border: 1px solid #e1e5eb; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; margin-left: 8px; }
     
     .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
     
@@ -22,7 +23,7 @@
     .list-header h2 { font-size: 16px; color: #1a1a2e; }
     .list-header .badge { background: #667eea; color: white; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
     
-    .list-items { padding: 8px; max-height: 350px; overflow-y: auto; }
+    .list-items { padding: 8px; max-height: 400px; overflow-y: auto; }
     
     .item { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border-radius: 10px; transition: background 0.2s; }
     .item:hover { background: #f8fafc; }
@@ -45,10 +46,11 @@
     .empty-state { text-align: center; padding: 30px; color: #888; }
     .empty-state span { font-size: 36px; display: block; margin-bottom: 8px; }
     
-    .footer { margin-top: 30px; text-align: center; color: #888; font-size: 12px; padding: 16px; border-top: 1px solid #e1e5eb; }
-    .footer .sync-status { margin-top: 8px; color: #10b981; font-size: 13px; }
+    .loading { text-align: center; padding: 40px; color: #888; }
     
-    /* Toast */
+    .footer { margin-top: 30px; text-align: center; color: #888; font-size: 12px; padding: 16px; border-top: 1px solid #e1e5eb; }
+    .footer .last-updated { margin-top: 8px; color: #667eea; font-size: 12px; }
+    
     .toast { position: fixed; bottom: 24px; right: 24px; padding: 14px 20px; background: #1a1a2e; color: white; border-radius: 10px; z-index: 2000; animation: slideIn 0.3s ease; }
     .toast.success { background: #10b981; }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
@@ -62,47 +64,44 @@
 <body>
   <div class="container">
     <header>
-      <h1>📋 James Dashboard</h1>
-      <span class="date" id="current-date"></span>
+      <h1>📋 James's Tasks</h1>
+      <div>
+        <span class="date" id="current-date"></span>
+        <button class="refresh-btn" onclick="loadLists()">🔄 Refresh</button>
+      </div>
     </header>
     
-    <div class="dashboard" id="dashboard"></div>
+    <div class="dashboard" id="dashboard">
+      <div class="loading">Loading tasks...</div>
+    </div>
     
     <div class="footer">
-      <div>Data saved automatically to this device</div>
-      <div class="sync-status" id="sync-status">✓ Saved</div>
+      <div>Last updated: <span id="last-updated">-</span></div>
     </div>
   </div>
 
   <script>
+    const DATA_URL = 'dashboard-data.json';
     let lists = [];
     
-    // Load from localStorage
-    function loadLists() {
-      const saved = localStorage.getItem('james-dashboard-lists');
-      if (saved) {
-        lists = JSON.parse(saved);
-      } else {
-        // Default lists
-        lists = [
-          {
-            id: 1,
-            name: 'SV Contracts Review Meeting List',
-            items: [
-              { id: 1, text: 'Meeting: Tomorrow, 10:00 AM', completed: false },
-              { id: 2, text: 'Discuss costs of bespoke app', completed: false }
-            ]
-          }
-        ];
+    // Load from JSON file (not localStorage)
+    async function loadLists() {
+      const dashboard = document.getElementById('dashboard');
+      dashboard.innerHTML = '<div class="loading">Loading tasks...</div>';
+      
+      try {
+        const response = await fetch(DATA_URL + '?t=' + Date.now());
+        const data = await response.json();
+        lists = data.lists;
+        
+        document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        document.getElementById('last-updated').textContent = new Date().toLocaleString('en-GB');
+        
+        render();
+      } catch (err) {
+        dashboard.innerHTML = '<div class="loading">Error loading tasks. Check internet connection.</div>';
+        console.error(err);
       }
-      render();
-    }
-    
-    // Save to localStorage
-    function saveLists() {
-      localStorage.setItem('james-dashboard-lists', JSON.stringify(lists));
-      const now = new Date().toLocaleTimeString('en-GB');
-      document.getElementById('sync-status').textContent = `✓ Saved ${now}`;
     }
     
     // Toast
@@ -116,8 +115,6 @@
     
     // Render
     function render() {
-      document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-      
       const dashboard = document.getElementById('dashboard');
       dashboard.innerHTML = lists.map(list => `
         <div class="list-card" data-id="${list.id}">
@@ -126,51 +123,19 @@
             <span class="badge">${list.items.filter(i => !i.completed).length}</span>
           </div>
           <div class="list-items">
-            ${list.items.length === 0 ? '<div class="empty-state"><span>📭</span>No items</div>' : ''}
+            ${list.items.length === 0 ? '<div class="empty-state"><span>📭</span>No tasks</div>' : ''}
             ${list.items.map(item => `
               <div class="item ${item.completed ? 'completed' : ''}" data-item-id="${item.id}">
-                <div class="item-checkbox" onclick="toggleItem(${list.id}, ${item.id})"></div>
+                <div class="item-checkbox"></div>
                 <div class="item-text">${item.text}</div>
-                <button class="item-delete" onclick="deleteItem(${list.id}, ${item.id})">×</button>
               </div>
             `).join('')}
-          </div>
-          <div class="add-item">
-            <input type="text" placeholder="Add item..." onkeypress="if(event.key==='Enter')addItem(${list.id}, this)">
-            <button onclick="addItem(${list.id}, this.previousElementSibling)">Add</button>
           </div>
         </div>
       `).join('');
     }
     
-    // Actions
-    function addItem(listId, input) {
-      if (!input.value.trim()) return;
-      const list = lists.find(l => l.id === listId);
-      list.items.push({ id: Date.now(), text: input.value.trim(), completed: false });
-      input.value = '';
-      saveLists();
-      render();
-      showToast('Item added');
-    }
-    
-    function toggleItem(listId, itemId) {
-      const list = lists.find(l => l.id === listId);
-      const item = list.items.find(i => i.id === itemId);
-      item.completed = !item.completed;
-      saveLists();
-      render();
-    }
-    
-    function deleteItem(listId, itemId) {
-      const list = lists.find(l => l.id === listId);
-      list.items = list.items.filter(i => i.id !== itemId);
-      saveLists();
-      render();
-      showToast('Item deleted');
-    }
-    
-    // Init
+    // Init - load fresh each time
     loadLists();
   </script>
 </body>
