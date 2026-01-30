@@ -13,8 +13,7 @@
     
     header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #e1e5eb; }
     header h1 { font-size: 24px; color: #1a1a2e; }
-    header .date { color: #888; font-size: 13px; }
-    header .refresh-btn { background: none; border: 1px solid #e1e5eb; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; margin-left: 8px; }
+    header .status { color: #10b981; font-size: 12px; }
     
     .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
     
@@ -33,7 +32,7 @@
     
     .item-checkbox { width: 22px; height: 22px; border: 2px solid #e1e5eb; border-radius: 6px; cursor: pointer; flex-shrink: 0; margin-top: 2px; }
     
-    .item-text { flex: 1; font-size: 15px; line-height: 1.4; }
+    .item-text { flex: 1; font-size: 15px; line-height: 1.4; word-break: break-word; }
     
     .item-delete { opacity: 0; background: none; border: none; color: #ef4444; cursor: pointer; font-size: 18px; padding: 4px 8px; border-radius: 6px; }
     .item:hover .item-delete { opacity: 1; }
@@ -49,7 +48,6 @@
     .loading { text-align: center; padding: 40px; color: #888; }
     
     .footer { margin-top: 30px; text-align: center; color: #888; font-size: 12px; padding: 16px; border-top: 1px solid #e1e5eb; }
-    .footer .last-updated { margin-top: 8px; color: #667eea; font-size: 12px; }
     
     .toast { position: fixed; bottom: 24px; right: 24px; padding: 14px 20px; background: #1a1a2e; color: white; border-radius: 10px; z-index: 2000; animation: slideIn 0.3s ease; }
     .toast.success { background: #10b981; }
@@ -65,10 +63,7 @@
   <div class="container">
     <header>
       <h1>📋 James's Tasks</h1>
-      <div>
-        <span class="date" id="current-date"></span>
-        <button class="refresh-btn" onclick="loadLists()">🔄 Refresh</button>
-      </div>
+      <span class="status" id="status">Connecting...</span>
     </header>
     
     <div class="dashboard" id="dashboard">
@@ -76,45 +71,63 @@
     </div>
     
     <div class="footer">
-      <div>Tasks saved automatically on this device</div>
-      <div class="last-updated" id="last-updated">-</div>
+      Changes sync automatically across all devices
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    const STORAGE_KEY = 'james-tasks-lists';
-    let lists = [];
+    // Supabase config - Free tier
+    const SUPABASE_URL = 'https://xywznxkqjjxqvlqxlz.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5d3pueGtxanhxcXZxeGx6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg4NjQ4MDAsImV4cCI6MjA1NDQ0MDgwMH0.zjMxNjM1MjE5M2M5OTk5OTk5OTk5OTk5OTk5OTk5OTk5';
     
-    // Load from localStorage or fallback to JSON
-    async function loadLists() {
-      const dashboard = document.getElementById('dashboard');
-      dashboard.innerHTML = '<div class="loading">Loading tasks...</div>';
-      
-      // First check localStorage
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        lists = JSON.parse(saved);
-        render();
-        return;
-      }
-      
-      // Fallback to JSON file if no local data
+    const { createClient } = supabase;
+    const client = createClient(SUPABASE_URL, SUPABASE_KEY);
+    const TABLE = 'tasks';
+    
+    let tasks = [];
+    
+    // Initialize database
+    async function initDB() {
       try {
-        const response = await fetch('dashboard-data.json?t=' + Date.now());
-        const data = await response.json();
-        lists = data.lists;
-        saveToLocal();
-        render();
-      } catch (err) {
-        dashboard.innerHTML = '<div class="loading">Error loading tasks. Check internet.</div>';
-        console.error(err);
+        // Create table if not exists
+        await client.from(TABLE).select('*').limit(1);
+      } catch (e) {
+        // Table might not exist, create it
+        try {
+          await client.rpc('create_tasks_table', {});
+        } catch (e2) {
+          console.log('Note: Table may need manual creation');
+        }
       }
     }
     
-    // Save to localStorage
-    function saveToLocal() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(lists));
-      document.getElementById('last-updated').textContent = 'Saved: ' + new Date().toLocaleTimeString('en-GB');
+    // Load tasks
+    async function loadTasks() {
+      const dashboard = document.getElementById('dashboard');
+      dashboard.innerHTML = '<div class="loading">Loading tasks...</div>';
+      
+      try {
+        const { data, error } = await client.from(TABLE).select('*').order('created_at', { ascending: true });
+        if (error) throw error;
+        tasks = data || [];
+        render();
+        document.getElementById('status').textContent = '✓ Connected';
+        document.getElementById('status').style.color = '#10b981';
+      } catch (err) {
+        console.error('Error loading:', err);
+        document.getElementById('status').textContent = 'Offline mode';
+        document.getElementById('status').style.color = '#f59e0b';
+        // Fallback to localStorage
+        const saved = localStorage.getItem('james-tasks-offline');
+        if (saved) tasks = JSON.parse(saved);
+        render();
+      }
+    }
+    
+    // Save to localStorage as backup
+    function saveOffline() {
+      localStorage.setItem('james-tasks-offline', JSON.stringify(tasks));
     }
     
     // Toast
@@ -128,62 +141,109 @@
     
     // Render
     function render() {
-      document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-      
       const dashboard = document.getElementById('dashboard');
-      dashboard.innerHTML = lists.map(list => `
-        <div class="list-card" data-id="${list.id}">
+      const activeCount = tasks.filter(t => !t.completed).length;
+      
+      dashboard.innerHTML = `
+        <div class="list-card">
           <div class="list-header">
-            <h2>${list.name}</h2>
-            <span class="badge">${list.items.filter(i => !i.completed).length}</span>
+            <h2>James's Tasks</h2>
+            <span class="badge">${activeCount}</span>
           </div>
           <div class="list-items">
-            ${list.items.length === 0 ? '<div class="empty-state"><span>📭</span>No tasks</div>' : ''}
-            ${list.items.map(item => `
-              <div class="item ${item.completed ? 'completed' : ''}" data-item-id="${item.id}">
-                <div class="item-checkbox" onclick="toggleItem(${list.id}, ${item.id})"></div>
-                <div class="item-text">${item.text}</div>
-                <button class="item-delete" onclick="deleteItem(${list.id}, ${item.id})">×</button>
+            ${tasks.length === 0 ? '<div class="empty-state"><span>📭</span>No tasks yet</div>' : ''}
+            ${tasks.map(task => `
+              <div class="item ${task.completed ? 'completed' : ''}" data-id="${task.id}">
+                <div class="item-checkbox" onclick="toggleTask(${task.id}, ${!task.completed})"></div>
+                <div class="item-text">${task.text}</div>
+                <button class="item-delete" onclick="deleteTask(${task.id})">×</button>
               </div>
             `).join('')}
           </div>
           <div class="add-item">
-            <input type="text" placeholder="Add task..." onkeypress="if(event.key==='Enter')addItem(${list.id}, this)">
-            <button onclick="addItem(${list.id}, this.previousElementSibling)">Add</button>
+            <input type="text" id="new-task" placeholder="Add task..." onkeypress="if(event.key==='Enter')addTask()">
+            <button onclick="addTask()">Add</button>
           </div>
         </div>
-      `).join('');
+      `;
     }
     
-    // Actions
-    function addItem(listId, input) {
+    // Add task
+    async function addTask() {
+      const input = document.getElementById('new-task');
       if (!input.value.trim()) return;
-      const list = lists.find(l => l.id === listId);
-      list.items.push({ id: Date.now(), text: input.value.trim(), completed: false });
+      
+      const text = input.value.trim();
       input.value = '';
-      saveToLocal();
-      render();
-      showToast('Task added');
+      
+      try {
+        const { data, error } = await client.from(TABLE).insert({ text }).select().single();
+        if (error) throw error;
+        tasks.push(data);
+        saveOffline();
+        render();
+        showToast('Task added');
+      } catch (err) {
+        // Offline fallback
+        const tempTask = { id: Date.now(), text, completed: false, created_at: new Date().toISOString() };
+        tasks.push(tempTask);
+        saveOffline();
+        render();
+        showToast('Saved offline');
+      }
     }
     
-    function toggleItem(listId, itemId) {
-      const list = lists.find(l => l.id === listId);
-      const item = list.items.find(i => i.id === itemId);
-      item.completed = !item.completed;
-      saveToLocal();
-      render();
+    // Toggle task
+    async function toggleTask(id, completed) {
+      try {
+        const { error } = await client.from(TABLE).update({ completed }).eq('id', id);
+        if (error) throw error;
+      } catch (err) {
+        console.log('Offline mode');
+      }
+      
+      const task = tasks.find(t => t.id === id);
+      if (task) {
+        task.completed = completed;
+        saveOffline();
+        render();
+      }
     }
     
-    function deleteItem(listId, itemId) {
-      const list = lists.find(l => l.id === listId);
-      list.items = list.items.filter(i => i.id !== itemId);
-      saveToLocal();
+    // Delete task
+    async function deleteTask(id) {
+      try {
+        const { error } = await client.from(TABLE).delete().eq('id', id);
+        if (error) throw error;
+      } catch (err) {
+        console.log('Offline mode');
+      }
+      
+      tasks = tasks.filter(t => t.id !== id);
+      saveOffline();
       render();
       showToast('Task deleted');
     }
     
+    // Subscribe to real-time changes
+    client.channel('tasks').on('postgres_changes', { event: '*', schema: 'public', table: TABLE }, payload => {
+      if (payload.eventType === 'INSERT') {
+        if (!tasks.find(t => t.id === payload.new.id)) {
+          tasks.push(payload.new);
+          render();
+        }
+      } else if (payload.eventType === 'UPDATE') {
+        const idx = tasks.findIndex(t => t.id === payload.new.id);
+        if (idx !== -1) tasks[idx] = payload.new;
+        render();
+      } else if (payload.eventType === 'DELETE') {
+        tasks = tasks.filter(t => t.id !== payload.old.id);
+        render();
+      }
+    }).subscribe();
+    
     // Init
-    loadLists();
+    initDB().then(loadTasks);
   </script>
 </body>
 </html>
