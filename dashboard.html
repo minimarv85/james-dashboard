@@ -4,42 +4,59 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>James Dashboard</title>
+  <meta name="theme-color" content="#667eea">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; min-height: 100vh; }
     
-    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 16px; }
     
-    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #e1e5eb; }
-    header h1 { font-size: 28px; color: #1a1a2e; }
-    header .date { color: #888; font-size: 14px; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #e1e5eb; }
+    header h1 { font-size: 24px; color: #1a1a2e; }
+    header .date { color: #888; font-size: 13px; }
     
-    .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 24px; }
+    .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
     
     .list-card { background: white; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); overflow: hidden; }
-    .list-header { padding: 20px 24px; border-bottom: 1px solid #f0f2f5; display: flex; justify-content: space-between; align-items: center; }
-    .list-header h2 { font-size: 18px; color: #1a1a2e; }
-    .list-header .badge { background: #667eea; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .list-header { padding: 16px 20px; border-bottom: 1px solid #f0f2f5; display: flex; justify-content: space-between; align-items: center; }
+    .list-header h2 { font-size: 16px; color: #1a1a2e; }
+    .list-header .badge { background: #667eea; color: white; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
     
-    .list-items { padding: 12px; max-height: 400px; overflow-y: auto; }
+    .list-items { padding: 8px; max-height: 350px; overflow-y: auto; }
     
-    .item { display: flex; align-items: flex-start; gap: 12px; padding: 12px; border-radius: 10px; transition: background 0.2s; }
+    .item { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border-radius: 10px; transition: background 0.2s; }
     .item:hover { background: #f8fafc; }
     .item.completed .item-text { text-decoration: line-through; color: #9ca3af; }
     .item.completed .item-checkbox { background: #10b981; border-color: #10b981; }
     .item.completed .item-checkbox::after { content: '✓'; color: white; font-size: 12px; display: flex; align-items: center; justify-content: center; height: 100%; }
     
-    .item-checkbox { width: 22px; height: 22px; border: 2px solid #e1e5eb; border-radius: 6px; cursor: pointer; flex-shrink: 0; margin-top: 2px; transition: all 0.2s; }
-    .item-checkbox:hover { border-color: #667eea; }
+    .item-checkbox { width: 22px; height: 22px; border: 2px solid #e1e5eb; border-radius: 6px; cursor: pointer; flex-shrink: 0; margin-top: 2px; }
     
-    .item-text { flex: 1; font-size: 14px; line-height: 1.5; }
+    .item-text { flex: 1; font-size: 15px; line-height: 1.4; }
     
-    .empty-state { text-align: center; padding: 40px; color: #888; }
-    .empty-state span { font-size: 48px; display: block; margin-bottom: 12px; }
+    .item-delete { opacity: 0; background: none; border: none; color: #ef4444; cursor: pointer; font-size: 18px; padding: 4px 8px; border-radius: 6px; }
+    .item:hover .item-delete { opacity: 1; }
     
-    .loading { text-align: center; padding: 40px; color: #888; }
+    .add-item { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #f0f2f5; }
+    .add-item input { flex: 1; padding: 12px; border: 2px solid #e1e5eb; border-radius: 10px; font-size: 14px; }
+    .add-item input:focus { border-color: #667eea; outline: none; }
+    .add-item button { padding: 12px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 500; }
     
-    .footer { margin-top: 40px; text-align: center; color: #888; font-size: 13px; padding: 20px; border-top: 1px solid #e1e5eb; }
+    .empty-state { text-align: center; padding: 30px; color: #888; }
+    .empty-state span { font-size: 36px; display: block; margin-bottom: 8px; }
+    
+    .footer { margin-top: 30px; text-align: center; color: #888; font-size: 12px; padding: 16px; border-top: 1px solid #e1e5eb; }
+    .footer .sync-status { margin-top: 8px; color: #10b981; font-size: 13px; }
+    
+    /* Toast */
+    .toast { position: fixed; bottom: 24px; right: 24px; padding: 14px 20px; background: #1a1a2e; color: white; border-radius: 10px; z-index: 2000; animation: slideIn 0.3s ease; }
+    .toast.success { background: #10b981; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    
+    @media (max-width: 600px) {
+      header { flex-direction: column; align-items: flex-start; gap: 8px; }
+      .dashboard { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -49,54 +66,108 @@
       <span class="date" id="current-date"></span>
     </header>
     
-    <div class="dashboard" id="dashboard">
-      <div class="loading">Loading lists...</div>
-    </div>
+    <div class="dashboard" id="dashboard"></div>
     
     <div class="footer">
-      Last updated: <span id="last-updated">-</span>
+      <div>Data saved automatically to this device</div>
+      <div class="sync-status" id="sync-status">✓ Saved</div>
     </div>
   </div>
 
   <script>
-    // Load data from JSON file
-    async function loadLists() {
-      const dashboard = document.getElementById('dashboard');
-      dashboard.innerHTML = '<div class="loading">Loading lists...</div>';
-      
-      try {
-        const response = await fetch('dashboard-data.json');
-        const data = await response.json();
-        
-        document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        document.getElementById('last-updated').textContent = new Date().toLocaleString('en-GB');
-        
-        render(data.lists);
-      } catch (err) {
-        dashboard.innerHTML = '<div class="loading">Error loading data. Make sure dashboard-data.json exists.</div>';
-        console.error(err);
+    let lists = [];
+    
+    // Load from localStorage
+    function loadLists() {
+      const saved = localStorage.getItem('james-dashboard-lists');
+      if (saved) {
+        lists = JSON.parse(saved);
+      } else {
+        // Default lists
+        lists = [
+          {
+            id: 1,
+            name: 'SV Contracts Review Meeting List',
+            items: [
+              { id: 1, text: 'Meeting: Tomorrow, 10:00 AM', completed: false },
+              { id: 2, text: 'Discuss costs of bespoke app', completed: false }
+            ]
+          }
+        ];
       }
+      render();
     }
     
-    function render(lists) {
+    // Save to localStorage
+    function saveLists() {
+      localStorage.setItem('james-dashboard-lists', JSON.stringify(lists));
+      const now = new Date().toLocaleTimeString('en-GB');
+      document.getElementById('sync-status').textContent = `✓ Saved ${now}`;
+    }
+    
+    // Toast
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.className = 'toast success';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
+    }
+    
+    // Render
+    function render() {
+      document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      
       const dashboard = document.getElementById('dashboard');
       dashboard.innerHTML = lists.map(list => `
-        <div class="list-card">
+        <div class="list-card" data-id="${list.id}">
           <div class="list-header">
             <h2>${list.name}</h2>
             <span class="badge">${list.items.filter(i => !i.completed).length}</span>
           </div>
           <div class="list-items">
-            ${list.items.length === 0 ? '<div class="empty-state"><span>📭</span>No items yet</div>' : ''}
+            ${list.items.length === 0 ? '<div class="empty-state"><span>📭</span>No items</div>' : ''}
             ${list.items.map(item => `
-              <div class="item ${item.completed ? 'completed' : ''}">
-                <div class="item-checkbox"></div>
+              <div class="item ${item.completed ? 'completed' : ''}" data-item-id="${item.id}">
+                <div class="item-checkbox" onclick="toggleItem(${list.id}, ${item.id})"></div>
                 <div class="item-text">${item.text}</div>
+                <button class="item-delete" onclick="deleteItem(${list.id}, ${item.id})">×</button>
               </div>
             `).join('')}
           </div>
+          <div class="add-item">
+            <input type="text" placeholder="Add item..." onkeypress="if(event.key==='Enter')addItem(${list.id}, this)">
+            <button onclick="addItem(${list.id}, this.previousElementSibling)">Add</button>
+          </div>
         </div>
       `).join('');
+    }
+    
+    // Actions
+    function addItem(listId, input) {
+      if (!input.value.trim()) return;
+      const list = lists.find(l => l.id === listId);
+      list.items.push({ id: Date.now(), text: input.value.trim(), completed: false });
+      input.value = '';
+      saveLists();
+      render();
+      showToast('Item added');
+    }
+    
+    function toggleItem(listId, itemId) {
+      const list = lists.find(l => l.id === listId);
+      const item = list.items.find(i => i.id === itemId);
+      item.completed = !item.completed;
+      saveLists();
+      render();
+    }
+    
+    function deleteItem(listId, itemId) {
+      const list = lists.find(l => l.id === listId);
+      list.items = list.items.filter(i => i.id !== itemId);
+      saveLists();
+      render();
+      showToast('Item deleted');
     }
     
     // Init
