@@ -13,6 +13,16 @@
           "id": 2,
           "text": "Discuss costs of bespoke app",
           "completed": false
+        },
+        {
+          "id": 3,
+          "text": "test task",
+          "completed": false
+        },
+        {
+          "id": 4,
+          "text": "eat task",
+          "completed": false
         }
       ]
     }
