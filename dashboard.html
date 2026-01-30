@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>James Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; min-height: 100vh; }
+    
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #e1e5eb; }
+    header h1 { font-size: 28px; color: #1a1a2e; }
+    header .date { color: #888; font-size: 14px; }
+    
+    .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 24px; }
+    
+    .list-card { background: white; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); overflow: hidden; }
+    .list-header { padding: 20px 24px; border-bottom: 1px solid #f0f2f5; display: flex; justify-content: space-between; align-items: center; }
+    .list-header h2 { font-size: 18px; color: #1a1a2e; }
+    .list-header .badge { background: #667eea; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    
+    .list-items { padding: 12px; max-height: 400px; overflow-y: auto; }
+    
+    .item { display: flex; align-items: flex-start; gap: 12px; padding: 12px; border-radius: 10px; transition: background 0.2s; }
+    .item:hover { background: #f8fafc; }
+    .item.completed .item-text { text-decoration: line-through; color: #9ca3af; }
+    .item.completed .item-checkbox { background: #10b981; border-color: #10b981; }
+    .item.completed .item-checkbox::after { content: '✓'; color: white; font-size: 12px; display: flex; align-items: center; justify-content: center; height: 100%; }
+    
+    .item-checkbox { width: 22px; height: 22px; border: 2px solid #e1e5eb; border-radius: 6px; cursor: pointer; flex-shrink: 0; margin-top: 2px; transition: all 0.2s; }
+    .item-checkbox:hover { border-color: #667eea; }
+    
+    .item-text { flex: 1; font-size: 14px; line-height: 1.5; }
+    
+    .empty-state { text-align: center; padding: 40px; color: #888; }
+    .empty-state span { font-size: 48px; display: block; margin-bottom: 12px; }
+    
+    .loading { text-align: center; padding: 40px; color: #888; }
+    
+    .footer { margin-top: 40px; text-align: center; color: #888; font-size: 13px; padding: 20px; border-top: 1px solid #e1e5eb; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📋 James Dashboard</h1>
+      <span class="date" id="current-date"></span>
+    </header>
+    
+    <div class="dashboard" id="dashboard">
+      <div class="loading">Loading lists...</div>
+    </div>
+    
+    <div class="footer">
+      Last updated: <span id="last-updated">-</span>
+    </div>
+  </div>
+
+  <script>
+    // Load data from JSON file
+    async function loadLists() {
+      const dashboard = document.getElementById('dashboard');
+      dashboard.innerHTML = '<div class="loading">Loading lists...</div>';
+      
+      try {
+        const response = await fetch('dashboard-data.json');
+        const data = await response.json();
+        
+        document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        document.getElementById('last-updated').textContent = new Date().toLocaleString('en-GB');
+        
+        render(data.lists);
+      } catch (err) {
+        dashboard.innerHTML = '<div class="loading">Error loading data. Make sure dashboard-data.json exists.</div>';
+        console.error(err);
+      }
+    }
+    
+    function render(lists) {
+      const dashboard = document.getElementById('dashboard');
+      dashboard.innerHTML = lists.map(list => `
+        <div class="list-card">
+          <div class="list-header">
+            <h2>${list.name}</h2>
+            <span class="badge">${list.items.filter(i => !i.completed).length}</span>
+          </div>
+          <div class="list-items">
+            ${list.items.length === 0 ? '<div class="empty-state"><span>📭</span>No items yet</div>' : ''}
+            ${list.items.map(item => `
+              <div class="item ${item.completed ? 'completed' : ''}">
+                <div class="item-checkbox"></div>
+                <div class="item-text">${item.text}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    // Init
+    loadLists();
+  </script>
+</body>
+</html>
