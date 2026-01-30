@@ -76,32 +76,45 @@
     </div>
     
     <div class="footer">
-      <div>Last updated: <span id="last-updated">-</span></div>
+      <div>Tasks saved automatically on this device</div>
+      <div class="last-updated" id="last-updated">-</div>
     </div>
   </div>
 
   <script>
-    const DATA_URL = 'dashboard-data.json';
+    const STORAGE_KEY = 'james-tasks-lists';
     let lists = [];
     
-    // Load from JSON file (not localStorage)
+    // Load from localStorage or fallback to JSON
     async function loadLists() {
       const dashboard = document.getElementById('dashboard');
       dashboard.innerHTML = '<div class="loading">Loading tasks...</div>';
       
+      // First check localStorage
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        lists = JSON.parse(saved);
+        render();
+        return;
+      }
+      
+      // Fallback to JSON file if no local data
       try {
-        const response = await fetch(DATA_URL + '?t=' + Date.now());
+        const response = await fetch('dashboard-data.json?t=' + Date.now());
         const data = await response.json();
         lists = data.lists;
-        
-        document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        document.getElementById('last-updated').textContent = new Date().toLocaleString('en-GB');
-        
+        saveToLocal();
         render();
       } catch (err) {
-        dashboard.innerHTML = '<div class="loading">Error loading tasks. Check internet connection.</div>';
+        dashboard.innerHTML = '<div class="loading">Error loading tasks. Check internet.</div>';
         console.error(err);
       }
+    }
+    
+    // Save to localStorage
+    function saveToLocal() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(lists));
+      document.getElementById('last-updated').textContent = 'Saved: ' + new Date().toLocaleTimeString('en-GB');
     }
     
     // Toast
@@ -115,6 +128,8 @@
     
     // Render
     function render() {
+      document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      
       const dashboard = document.getElementById('dashboard');
       dashboard.innerHTML = lists.map(list => `
         <div class="list-card" data-id="${list.id}">
@@ -126,16 +141,48 @@
             ${list.items.length === 0 ? '<div class="empty-state"><span>📭</span>No tasks</div>' : ''}
             ${list.items.map(item => `
               <div class="item ${item.completed ? 'completed' : ''}" data-item-id="${item.id}">
-                <div class="item-checkbox"></div>
+                <div class="item-checkbox" onclick="toggleItem(${list.id}, ${item.id})"></div>
                 <div class="item-text">${item.text}</div>
+                <button class="item-delete" onclick="deleteItem(${list.id}, ${item.id})">×</button>
               </div>
             `).join('')}
+          </div>
+          <div class="add-item">
+            <input type="text" placeholder="Add task..." onkeypress="if(event.key==='Enter')addItem(${list.id}, this)">
+            <button onclick="addItem(${list.id}, this.previousElementSibling)">Add</button>
           </div>
         </div>
       `).join('');
     }
     
-    // Init - load fresh each time
+    // Actions
+    function addItem(listId, input) {
+      if (!input.value.trim()) return;
+      const list = lists.find(l => l.id === listId);
+      list.items.push({ id: Date.now(), text: input.value.trim(), completed: false });
+      input.value = '';
+      saveToLocal();
+      render();
+      showToast('Task added');
+    }
+    
+    function toggleItem(listId, itemId) {
+      const list = lists.find(l => l.id === listId);
+      const item = list.items.find(i => i.id === itemId);
+      item.completed = !item.completed;
+      saveToLocal();
+      render();
+    }
+    
+    function deleteItem(listId, itemId) {
+      const list = lists.find(l => l.id === listId);
+      list.items = list.items.filter(i => i.id !== itemId);
+      saveToLocal();
+      render();
+      showToast('Task deleted');
+    }
+    
+    // Init
     loadLists();
   </script>
 </body>
